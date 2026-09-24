@@ -1,0 +1,17 @@
+model ScreentimeLog {
+  id            String   @id @default(uuid())
+  userId        String
+  date          DateTime
+  deviceInfo    String?
+  activeSeconds Int      @default(0)
+  idleSeconds   Int      @default(0)
+  topApps       Json     @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation("ScreentimeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("screentime_logs")
+}

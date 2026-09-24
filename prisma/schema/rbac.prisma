@@ -1,0 +1,66 @@
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid())
+  key         String  @unique
+  description String?
+
+  roles         RolePermission[]
+  userOverrides UserPermission[]
+
+  @@map("permissions")
+}
+
+/**
+ * Per-user permission overrides, layered on top of role-derived permissions.
+ * granted=true: an extra permission this user has beyond what their role(s) give them
+ * (e.g. a STAFF member individually given HR's "requests:approve").
+ * granted=false: an explicit revoke — removes a permission even if a role grants it.
+ * Absence of a row here means "just use whatever the roles say," which is the normal case.
+ */
+model UserPermission {
+  userId       String
+  permissionId String
+  granted      Boolean  @default(true)
+  grantedById  String?
+  createdAt    DateTime @default(now())
+
+  user       User       @relation("UserPermissionTarget", fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedBy  User?      @relation("UserPermissionGrantor", fields: [grantedById], references: [id])
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}

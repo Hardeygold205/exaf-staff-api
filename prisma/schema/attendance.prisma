@@ -1,0 +1,59 @@
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  HALF_DAY
+}
+
+enum AttendanceReviewStatus {
+  NONE
+  PENDING_REVIEW
+  REVIEWED
+}
+
+enum CheckoutSource {
+  USER
+  SYSTEM
+}
+
+enum CheckoutReasonType {
+  FORGOT_TO_CHECKOUT
+  WORKING_IN_OFFICE
+  URGENT_TASK
+  MEETING
+  COMPANY_ASSIGNMENT
+  REQUESTED_TO_WORK_LATE
+  TECHNICAL_ISSUE
+  OTHER
+}
+
+model Attendance {
+  id         String    @id @default(uuid())
+  userId     String
+  checkInAt  DateTime  @default(now())
+  checkOutAt DateTime?
+
+  checkInIp   String?
+  checkOutIp  String?
+  checkInLat  Float?
+  checkInLng  Float?
+  checkOutLat Float?
+  checkOutLng Float?
+
+  status       AttendanceStatus       @default(PRESENT)
+  leftEarly    Boolean                @default(false)
+  reviewStatus AttendanceReviewStatus @default(NONE)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  checkoutReasonType CheckoutReasonType?
+  checkoutReasonText String?
+  checkoutSource     CheckoutSource      @default(USER)
+
+  user       User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("AttendanceReviewer", fields: [reviewedById], references: [id])
+
+  @@index([userId, checkInAt])
+  @@index([userId, reviewStatus])
+  @@map("attendance")
+}

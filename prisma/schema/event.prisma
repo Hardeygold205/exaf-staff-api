@@ -1,0 +1,32 @@
+enum EventType {
+  ANNOUNCEMENT
+  PUBLIC_HOLIDAY
+  COMPANY_EVENT
+  MEETING
+  TRAINING
+  OTHER
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  type        EventType @default(ANNOUNCEMENT)
+  startsAt    DateTime
+  endsAt      DateTime?
+  allDay      Boolean   @default(false)
+  linkUrl     String?
+  linkLabel   String?
+  createdById String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy User     @relation("EventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  uploads   Upload[]
+
+  @@index([startsAt])
+  @@index([type, startsAt])
+  @@index([createdById])
+  @@map("events")
+}

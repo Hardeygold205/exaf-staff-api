@@ -1,0 +1,45 @@
+enum SuggestionStatus {
+  PENDING
+  UNDER_REVIEW
+  IMPLEMENTED
+  DECLINED
+}
+
+enum SuggestionVoteType {
+  LIKE
+  DISLIKE
+}
+
+model Suggestion {
+  id          String           @id @default(uuid())
+  content     String
+  isAnonymous Boolean          @default(false)
+  status      SuggestionStatus @default(PENDING)
+  createdById String
+
+  createdBy User             @relation("SuggestionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  votes     SuggestionVote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@map("suggestions")
+}
+
+model SuggestionVote {
+  id           String             @id @default(uuid())
+  suggestionId String
+  userId       String
+  type         SuggestionVoteType
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  suggestion Suggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  user       User       @relation("SuggestionVotes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([suggestionId, userId])
+  @@index([suggestionId, type])
+  @@map("suggestion_votes")
+}

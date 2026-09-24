@@ -1,0 +1,39 @@
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+}
+
+model Project {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  createdBy User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  members   ProjectMember[]
+  tasks     Task[]
+
+  @@index([status])
+  @@index([createdById])
+  @@map("projects")
+}
+
+model ProjectMember {
+  projectId     String
+  userId        String
+  roleInProject String @default("MEMBER")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}

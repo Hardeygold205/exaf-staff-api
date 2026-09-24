@@ -1,0 +1,42 @@
+enum StorageDriver {
+  LOCAL
+  S3
+}
+
+enum UploadEntityType {
+  PROJECT
+  TASK
+  STAFF_REQUEST
+  EVENT
+}
+
+model Upload {
+  id           String        @id @default(uuid())
+  uploadedById String
+  originalName String
+  storedKey    String
+  url          String
+  mimeType     String
+  sizeBytes    Int
+  driver       StorageDriver
+
+  entityType UploadEntityType?
+  entityId   String?
+
+  relativePath String?
+  folderName   String?
+
+  createdAt DateTime @default(now())
+
+  uploadedBy User    @relation("UploadOwner", fields: [uploadedById], references: [id], onDelete: Cascade)
+  task       Task?   @relation(fields: [taskId], references: [id])
+  taskId     String?
+  event      Event?  @relation(fields: [eventId], references: [id])
+  eventId    String?
+
+  @@index([entityId])
+  @@index([folderName])
+  @@index([uploadedById])
+  @@index([entityType, entityId])
+  @@map("uploads")
+}

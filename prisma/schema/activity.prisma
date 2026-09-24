@@ -1,0 +1,18 @@
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  action      String
+  entityType  String?
+  entityId    String?
+  description String
+  metadata    Json?    @default("{}")
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  user User? @relation("ActivityUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}

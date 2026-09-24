@@ -1,0 +1,30 @@
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// category is a string (LEAVE, TRAVEL, EQUIPMENT, …) so new kinds do not require a migration.
+model StaffRequest {
+  id             String        @id @default(uuid())
+  userId         String
+  category       String
+  subject        String
+  details        String?
+  startDate      DateTime?
+  endDate        DateTime?
+  status         RequestStatus @default(PENDING)
+  notifyToEmails String[]      @default([])
+  notifyCcEmails String[]      @default([])
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime      @default(now())
+
+  user       User  @relation("RequestOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("RequestReviewer", fields: [reviewedById], references: [id])
+
+  @@index([userId, status])
+  @@index([category])
+  @@map("staff_requests")
+}

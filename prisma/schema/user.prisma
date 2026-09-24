@@ -1,0 +1,59 @@
+enum OfficeBranch {
+  ABUJA
+  KANO
+}
+
+enum Shift {
+  ONSITE
+  HYBRID
+  REMOTE
+}
+
+model User {
+  id                 String       @id @default(uuid())
+  email              String       @unique
+  passwordHash       String
+  firstName          String
+  lastName           String
+  middleName         String?
+  username           String?      @unique
+  dateOfBirth        DateTime?
+  department         String       @default("UNASSIGNED")
+  position           String       @default("UNASSIGNED")
+  isIntern           Boolean      @default(false)
+  officeBranch       OfficeBranch @default(ABUJA)
+  shift              Shift        @default(ONSITE)
+  bio                String?
+  avatarUrl          String?
+  isActive           Boolean      @default(true)
+  mustChangePassword Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  roles               UserRole[]
+  attendances         Attendance[]
+  staffRequests       StaffRequest[]   @relation("RequestOwner")
+  reviewedRequests    StaffRequest[]   @relation("RequestReviewer")
+  createdProjects     Project[]        @relation("ProjectCreator")
+  projectMembers      ProjectMember[]
+  assignedTasks       Task[]           @relation("AssignedTasks")
+  createdTasks        Task[]           @relation("CreatedTasks")
+  refreshTokens       RefreshToken[]
+  screentimeLogs      ScreentimeLog[]  @relation("ScreentimeUser")
+  attendanceExempt    Boolean          @default(false)
+  reviewedAttendance  Attendance[]     @relation("AttendanceReviewer")
+  permissionOverrides UserPermission[] @relation("UserPermissionTarget")
+  grantedPermissions  UserPermission[] @relation("UserPermissionGrantor")
+  activities          ActivityLog[]    @relation("ActivityUser")
+  notifications       Notification[]   @relation("NotificationUser")
+  uploads             Upload[]         @relation("UploadOwner")
+  createdEvents       Event[]          @relation("EventCreator")
+  suggestions         Suggestion[]     @relation("SuggestionCreator")
+  suggestionVotes     SuggestionVote[] @relation("SuggestionVotes")
+
+  @@index([officeBranch])
+  @@index([department])
+  @@index([position])
+  @@index([isActive])
+  @@map("users")
+}
