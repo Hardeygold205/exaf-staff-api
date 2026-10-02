@@ -294,7 +294,7 @@ export class UsersService {
 
   async uploadAvatar(userId: string, file: Express.Multer.File) {
     if (!file) throw new BadRequestException("Image file is required");
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
     if (!allowed.includes(file.mimetype)) {
       throw new BadRequestException(
         "Avatar must be a JPEG, PNG, or WebP image",

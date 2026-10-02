@@ -20,18 +20,23 @@ export class StorageService {
   private s3: S3Client | null = null;
 
   constructor(private config: ConfigService) {
-    this.driver = this.config.get("STORAGE_DRIVER", "local");
+    this.driver = this.config.get("STORAGE_DRIVER", "s3");
     this.uploadDir = this.config.get("UPLOAD_DIR", "uploads");
 
     if (this.driver === "s3") {
       this.s3 = new S3Client({
-        region: this.config.get("AWS_REGION", "eu-west-1"),
-        credentials: this.config.get("AWS_ACCESS_KEY_ID")
-          ? {
-              accessKeyId: this.config.getOrThrow("AWS_ACCESS_KEY_ID"),
-              secretAccessKey: this.config.getOrThrow("AWS_SECRET_ACCESS_KEY"),
-            }
-          : undefined,
+        endpoint: this.config.getOrThrow("AWS_S3_ENDPOINT"),
+
+        region: this.config.get("AWS_REGION", "eu-central-1"),
+
+        forcePathStyle: true,
+
+        requestChecksumCalculation: "WHEN_REQUIRED",
+
+        credentials: {
+          accessKeyId: this.config.getOrThrow("AWS_ACCESS_KEY_ID"),
+          secretAccessKey: this.config.getOrThrow("AWS_SECRET_ACCESS_KEY"),
+        },
       });
     }
   }
@@ -92,9 +97,6 @@ export class StorageService {
     const dest = join(process.cwd(), this.uploadDir, key);
     await mkdir(join(dest, ".."), { recursive: true });
 
-    // diskStorage-based uploads (large audio/video, see uploads.controller.ts) already
-    // have a temp file on disk — copy it instead of loading the whole thing into memory.
-    // memoryStorage-based uploads (small docs/images/avatars) only have a buffer.
     if (file.path) {
       await copyFile(file.path, dest);
       await unlink(file.path).catch(() => undefined);
@@ -125,7 +127,7 @@ export class StorageService {
     const publicBase = this.config.get<string>("AWS_S3_PUBLIC_BASE_URL");
     if (publicBase) return `${publicBase.replace(/\/$/, "")}/${key}`;
 
-    const region = this.config.get("AWS_REGION", "eu-west-1");
+    const region = this.config.get("AWS_REGION");
     return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
   }
 

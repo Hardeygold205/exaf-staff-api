@@ -15,6 +15,7 @@ RUN corepack enable && corepack prepare pnpm@11.3.0 --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV DATABASE_URL="postgresql://user:pass@localhost:5432/placeholder"
+ENV DIRECT_URL="postgresql://user:pass@localhost:5432/placeholder"
 RUN pnpm prisma:generate
 RUN pnpm build
 RUN pnpm prune --prod
