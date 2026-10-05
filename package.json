@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "prisma generate --schema=prisma/schema && nest build",
     "start": "dotenv -e .env.local -- nest start",
     "start:dev": "dotenv -e .env.local -- nest start --watch",
     "start:prod": "node dist/main",
