@@ -9,9 +9,6 @@ import { AppModule } from "./app.module";
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Needed the moment this sits behind nginx/a load balancer/a Docker network gateway —
-  // without it, req.ip reports the proxy's address, not the real client's.
-  // 1 = trust the first hop (typical single reverse-proxy setup); adjust if you add more hops.
   app.set("trust proxy", 1);
 
   app.use(helmet());
@@ -24,7 +21,8 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: (process.env.CORS_ORIGINS ?? "http://localhost:4200")
+    origin: (process.env.CORS_ORIGINS ?? "http://localhost:4200",
+    "https://staff-workplace-dashboard.vercel.app")
       .split(",")
       .map((origin) => origin.trim())
       .filter(Boolean),
