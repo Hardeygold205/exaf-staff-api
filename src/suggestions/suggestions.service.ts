@@ -15,8 +15,11 @@ export class SuggestionsService {
   constructor(private prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateSuggestionInput) {
+    const account = await this.prisma.user.findUnique({ where: { id: userId }, select: { organizationId: true } });
+    if (!account?.organizationId) throw new Error("Organization required");
     return this.prisma.suggestion.create({
       data: {
+        organizationId: account.organizationId,
         content: dto.content,
         isAnonymous: dto.isAnonymous,
         createdById: userId,
@@ -24,8 +27,9 @@ export class SuggestionsService {
     });
   }
 
-  async findAll(userId: string) {
+  async findAll(userId: string, organizationId?: string) {
     const suggestions = await this.prisma.suggestion.findMany({
+      where: organizationId ? { organizationId } : undefined,
       orderBy: { createdAt: "desc" },
       include: {
         createdBy: {

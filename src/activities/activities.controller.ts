@@ -14,6 +14,7 @@ import {
   queryActivitiesSchema,
 } from "./activities.schemas";
 import { ResponseMessage } from "../common/decorators/response-message.decorator";
+import { requireOrgId } from "../common/tenant";
 
 @ApiTags("Activities")
 @ApiBearerAuth()
@@ -44,9 +45,10 @@ export class ActivitiesController {
   @ResponseMessage("All activities fetched successfully")
   @RequirePermissions("activities:view_all")
   findAll(
+    @CurrentUser() user: AuthUser,
     @Query(new ZodValidationPipe(queryActivitiesSchema))
     query: QueryActivitiesInput,
   ) {
-    return this.activitiesService.findAllActivities(query);
+    return this.activitiesService.findAllActivities(query, user.isPlatformAdmin ? undefined : requireOrgId(user));
   }
 }

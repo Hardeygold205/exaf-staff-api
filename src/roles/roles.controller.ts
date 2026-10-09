@@ -15,6 +15,10 @@ import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequirePermissions } from "../common/decorators/permissions.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { ResponseMessage } from "../common/decorators/response-message.decorator";
+import {
+  CurrentUser,
+  AuthUser,
+} from "../common/decorators/current-user.decorator";
 import { RolesService } from "./roles.service";
 import {
   CreateRoleDto,
@@ -35,15 +39,15 @@ export class RolesController {
   @Get()
   @ResponseMessage("Roles retrieved successfully")
   @RequirePermissions("roles:view")
-  findAllRoles() {
-    return this.rolesService.findAllRoles();
+  findAllRoles(@CurrentUser() user: AuthUser) {
+    return this.rolesService.findAllRoles(user);
   }
 
   @Get("permissions")
   @ResponseMessage("Permissions retrieved successfully")
   @RequirePermissions("roles:view")
-  findAllPermissions() {
-    return this.rolesService.findAllPermissions();
+  findAllPermissions(@CurrentUser() user: AuthUser) {
+    return this.rolesService.findAllPermissions(user);
   }
 
   @Post()
@@ -51,8 +55,11 @@ export class RolesController {
   @ResponseMessage("Role created successfully")
   @RequirePermissions("roles:manage")
   @ApiBody({ type: CreateRoleDto })
-  create(@Body(new ZodValidationPipe(createRoleSchema)) dto: CreateRoleInput) {
-    return this.rolesService.create(dto);
+  create(
+    @CurrentUser() user: AuthUser,
+    @Body(new ZodValidationPipe(createRoleSchema)) dto: CreateRoleInput,
+  ) {
+    return this.rolesService.create(user, dto);
   }
 
   @Patch(":id/permissions")
@@ -60,10 +67,11 @@ export class RolesController {
   @RequirePermissions("roles:manage")
   @ApiBody({ type: SetRolePermissionsDto })
   setPermissions(
+    @CurrentUser() user: AuthUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(setRolePermissionsSchema))
     dto: SetRolePermissionsInput,
   ) {
-    return this.rolesService.setPermissions(id, dto);
+    return this.rolesService.setPermissions(user, id, dto);
   }
 }

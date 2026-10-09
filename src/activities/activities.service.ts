@@ -8,6 +8,7 @@ export class ActivitiesService {
 
   async logActivity(data: {
     userId?: string;
+    organizationId?: string;
     action: string;
     description: string;
     entityType?: string;
@@ -16,9 +17,18 @@ export class ActivitiesService {
     ipAddress?: string;
   }) {
     try {
+      let organizationId = data.organizationId;
+      if (!organizationId && data.userId) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: data.userId },
+          select: { organizationId: true },
+        });
+        organizationId = user?.organizationId ?? undefined;
+      }
       return await this.prisma.activityLog.create({
         data: {
           userId: data.userId,
+          organizationId,
           action: data.action,
           description: data.description,
           entityType: data.entityType,
@@ -55,7 +65,7 @@ export class ActivitiesService {
     };
   }
 
-  async findAllActivities(query: QueryActivitiesInput) {
+  async findAllActivities(query: QueryActivitiesInput, organizationId?: string) {
     const {
       userId,
       action,
@@ -66,6 +76,7 @@ export class ActivitiesService {
       limit = 20,
     } = query;
     const where: any = {};
+    if (organizationId) where.organizationId = organizationId;
 
     if (userId) where.userId = userId;
     if (action) where.action = action;

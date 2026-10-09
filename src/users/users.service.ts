@@ -24,6 +24,7 @@ import { MailService } from "../infra/mail/mail.service";
 import { ActivitiesService } from "../activities/activities.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { escapeHtml } from "../common/escape-html.util";
+import { assertSameOrg, requireOrgId } from "../common/tenant";
 
 const directorySelect = {
   id: true,
@@ -32,14 +33,18 @@ const directorySelect = {
   lastName: true,
   middleName: true,
   username: true,
-  department: true,
+  organizationId: true,
+  departmentId: true,
+  department: { select: { id: true, name: true } },
   position: true,
-  officeBranch: true,
+  officeBranchId: true,
+  officeBranch: { select: { id: true, name: true, city: true } },
   shift: true,
   isIntern: true,
   bio: true,
   avatarUrl: true,
   isActive: true,
+  attendanceExempt: true,
   createdAt: true,
   roles: { select: { role: { select: { name: true } } } },
   permissionOverrides: {
@@ -78,7 +83,13 @@ const meSelect = {
   mustChangePassword: true,
 } as const;
 
-const privilegedRoles = new Set(["SUPERADMIN", "CEO", "COO", "FINANCE_LEAD"]);
+const privilegedRoles = new Set([
+  "ORG_OWNER",
+  "SUPERADMIN",
+  "CEO",
+  "COO",
+  "FINANCE_LEAD",
+]);
 const roleAssignmentPermission = "users:assign_roles";
 
 @Injectable()
@@ -101,7 +112,13 @@ export class UsersService {
       throw new ConflictException("A user with this email already exists");
 
     await this.ensureUsernameAvailable(dto.username);
-    const roles = await this.resolveRoles(dto.roleNames);
+    const organizationId = requireOrgId(actor);
+    await this.assertPlacement(
+      organizationId,
+      dto.departmentId,
+      dto.officeBranchId,
+    );
+    const roles = await this.resolveRoles(dto.roleNames, organizationId);
     this.ensureRoleAssignmentAllowed(
       actor,
       roles.map((role) => role.name),
@@ -117,9 +134,13 @@ export class UsersService {
         lastName: dto.lastName,
         middleName: dto.middleName,
         username: dto.username,
-        department: dto.department,
+        organizationId: requireOrgId(actor),
+        departmentId: dto.departmentId ?? undefined,
+        officeBranchId: dto.officeBranchId ?? undefined,
+        shift: dto.shift,
         position: dto.position,
         isIntern: dto.isIntern,
+        attendanceExempt: dto.attendanceExempt,
         dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
         bio: dto.bio,
         passwordHash,
@@ -129,15 +150,18 @@ export class UsersService {
       select: meSelect,
     });
 
-    await this.redis.del(CacheKeys.usersDirectory);
+    await this.redis.del(CacheKeys.usersDirectory(requireOrgId(actor)));
+
+    const organizationName = await this.organizationName(organizationId);
 
     try {
       await this.mail.send({
         to: [user.email],
-        subject: "Welcome to EXAF Staff Platform - Your Account Credentials",
+        organizationName,
+        subject: "Your account credentials",
         html: `
-          <h2>Welcome to EXAF Staff Platform, ${escapeHtml(user.firstName)}!</h2>
-          <p>Your staff account has been created.</p>
+          <h2>Welcome, ${escapeHtml(user.firstName)}</h2>
+          <p>Your staff account at ${escapeHtml(organizationName)} has been created.</p>
           <ul>
             <li><strong>Email:</strong> ${escapeHtml(user.email)}</li>
             <li><strong>Temporary Password:</strong> <code>${temporaryPassword}</code></li>
@@ -151,9 +175,9 @@ export class UsersService {
 
     if (this.config.get("NODE_ENV") !== "production") {
       console.log(
-        `[EXAF PLATFORM] New user ${user.email} created by ${actor.email}`,
+        `[WORKPLACE] New user ${user.email} created by ${actor.email}`,
       );
-      console.log(`[EXAF PLATFORM] Temporary password: ${temporaryPassword}`);
+      console.log(`[WORKPLACE] Temporary password: ${temporaryPassword}`);
     }
 
     await this.activities.logActivity({
@@ -166,7 +190,7 @@ export class UsersService {
 
     await this.notifications.createNotification({
       userId: user.id,
-      title: "Welcome to EXAF Staff Platform",
+      title: "Welcome to your workplace",
       message:
         "Your staff account has been created. Please complete your profile and change your temporary password.",
       type: "SYSTEM",
@@ -176,11 +200,15 @@ export class UsersService {
     return user;
   }
 
-  async findAll() {
-    const cached = await this.redis.get<unknown>(CacheKeys.usersDirectory);
+  async findAll(actor: AuthUser) {
+    const organizationId = requireOrgId(actor);
+    const cached = await this.redis.get<unknown>(
+      CacheKeys.usersDirectory(organizationId),
+    );
     if (cached) return cached;
 
     const users = await this.prisma.user.findMany({
+      where: { organizationId },
       select: directorySelect,
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     });
@@ -188,13 +216,45 @@ export class UsersService {
     const formattedUsers = users.map(formatUserPermissions);
 
     const ttl = Number(this.config.get("CACHE_TTL_SECONDS", 60));
-    await this.redis.set(CacheKeys.usersDirectory, formattedUsers, ttl);
+    await this.redis.set(
+      CacheKeys.usersDirectory(organizationId),
+      formattedUsers,
+      ttl,
+    );
     return formattedUsers;
   }
 
-  async findDirectoryEmails() {
+  async findDepartmentDirectory(actor: AuthUser) {
+    const organizationId = requireOrgId(actor);
+    const departments = await this.prisma.department.findMany({
+      where: { organizationId, isActive: true },
+      orderBy: { name: "asc" },
+      include: {
+        users: {
+          where: { isActive: true },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            position: true,
+            avatarUrl: true,
+            shift: true,
+          },
+        },
+      },
+    });
+    return departments.map((department) => ({
+      id: department.id,
+      department: department.name,
+      description: department.description,
+      users: department.users,
+    }));
+  }
+
+  async findDirectoryEmails(actor: AuthUser) {
     const users = await this.prisma.user.findMany({
-      where: { isActive: true },
+      where: { organizationId: requireOrgId(actor), isActive: true },
       select: {
         id: true,
         email: true,
@@ -236,7 +296,9 @@ export class UsersService {
       },
       select: meSelect,
     });
-    await this.redis.del(CacheKeys.usersDirectory);
+    if (user.organizationId) {
+      await this.redis.del(CacheKeys.usersDirectory(user.organizationId));
+    }
     return user;
   }
 
@@ -248,9 +310,17 @@ export class UsersService {
       await this.ensureUsernameAvailable(dto.username, id);
     }
 
+    const organizationId = requireOrgId(actor);
+    assertSameOrg(actor, existing.organizationId);
+    await this.assertPlacement(
+      organizationId,
+      dto.departmentId,
+      dto.officeBranchId,
+    );
+
     let roleConnect: { roleId: string }[] | undefined;
     if (dto.roleNames) {
-      const roles = await this.resolveRoles(dto.roleNames);
+      const roles = await this.resolveRoles(dto.roleNames, organizationId);
       this.ensureRoleAssignmentAllowed(
         actor,
         roles.map((role) => role.name),
@@ -270,11 +340,12 @@ export class UsersService {
           lastName: dto.lastName,
           middleName: dto.middleName === undefined ? undefined : dto.middleName,
           username: dto.username === undefined ? undefined : dto.username,
-          department: dto.department,
-          officeBranch: dto.officeBranch,
+          departmentId: dto.departmentId,
+          officeBranchId: dto.officeBranchId,
           shift: dto.shift,
           position: dto.position,
           isIntern: dto.isIntern,
+          attendanceExempt: dto.attendanceExempt,
           dateOfBirth:
             dto.dateOfBirth === undefined
               ? undefined
@@ -288,7 +359,7 @@ export class UsersService {
       });
     });
 
-    await this.redis.del(CacheKeys.usersDirectory);
+    await this.redis.del(CacheKeys.usersDirectory(requireOrgId(actor)));
     return user;
   }
 
@@ -307,11 +378,13 @@ export class UsersService {
       data: { avatarUrl },
       select: meSelect,
     });
-    await this.redis.del(CacheKeys.usersDirectory);
+    if (user.organizationId) {
+      await this.redis.del(CacheKeys.usersDirectory(user.organizationId));
+    }
     return user;
   }
 
-  async deactivate(id: string) {
+  async deactivate(id: string, actor: AuthUser) {
     const user = await this.prisma.user.update({
       where: { id },
       data: { isActive: false },
@@ -320,7 +393,8 @@ export class UsersService {
 
     await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
 
-    await this.redis.del(CacheKeys.usersDirectory);
+    assertSameOrg(actor, user.organizationId);
+    await this.redis.del(CacheKeys.usersDirectory(requireOrgId(actor)));
 
     this.eventsGateway.notifyForceLogout(id, "ACCOUNT_DEACTIVATED");
 
@@ -335,6 +409,7 @@ export class UsersService {
         email: true,
         firstName: true,
         lastName: true,
+        organizationId: true,
       },
     });
 
@@ -390,14 +465,19 @@ export class UsersService {
       type: "SECURITY",
     });
 
+    const organizationName = user.organizationId
+      ? await this.organizationName(user.organizationId)
+      : undefined;
+
     await this.mail.send({
       to: [user.email],
-      subject: "EXAF Staff Platform - Password Reset",
+      organizationName,
+      subject: "Password reset",
       html: `
       <h2>Password Reset</h2>
-      <p>Hello ${user.firstName},</p>
+      <p>Hello ${escapeHtml(user.firstName)},</p>
       <p>
-        Your EXAF Staff Platform password has been reset by an administrator.
+        Your password at ${escapeHtml(organizationName ?? "your organization")} has been reset by an administrator.
       </p>
 
       <p><strong>Temporary Password:</strong></p>
@@ -414,7 +494,7 @@ export class UsersService {
 
     if (this.config.get("NODE_ENV") !== "production") {
       console.log("\n======================================================");
-      console.log("[EXAF PLATFORM] PASSWORD RESET");
+      console.log("[WORKPLACE] PASSWORD RESET");
       console.log(`User: ${user.email}`);
       console.log(`Temporary Password: ${temporaryPassword}`);
       console.log("======================================================\n");
@@ -423,12 +503,47 @@ export class UsersService {
     return null;
   }
 
-  private async resolveRoles(roleNames: string[]) {
+  private async organizationName(organizationId: string) {
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { name: true },
+    });
+    return organization?.name ?? "your organization";
+  }
+
+  private async assertPlacement(
+    organizationId: string,
+    departmentId?: string | null,
+    officeBranchId?: string | null,
+  ) {
+    if (departmentId) {
+      const department = await this.prisma.department.findFirst({
+        where: { id: departmentId, organizationId, isActive: true },
+      });
+      if (!department) {
+        throw new BadRequestException(
+          "Department is not part of this organization",
+        );
+      }
+    }
+    if (officeBranchId) {
+      const branch = await this.prisma.officeBranch.findFirst({
+        where: { id: officeBranchId, organizationId, isActive: true },
+      });
+      if (!branch) {
+        throw new BadRequestException(
+          "Office branch is not part of this organization",
+        );
+      }
+    }
+  }
+
+  private async resolveRoles(roleNames: string[], organizationId: string) {
     const normalized = [
       ...new Set(roleNames.map((name) => name.trim().toUpperCase())),
     ];
     const roles = await this.prisma.role.findMany({
-      where: { name: { in: normalized } },
+      where: { name: { in: normalized }, organizationId },
     });
     if (roles.length !== normalized.length) {
       const found = new Set(roles.map((role) => role.name));
@@ -439,7 +554,12 @@ export class UsersService {
   }
 
   private ensureRoleAssignmentAllowed(actor: AuthUser, roleNames: string[]) {
-    if (actor.roles.includes("SUPERADMIN")) return;
+    if (
+      actor.isPlatformAdmin ||
+      actor.roles.includes("ORG_OWNER") ||
+      actor.roles.includes("SUPERADMIN")
+    )
+      return;
 
     if (!actor.permissions.includes(roleAssignmentPermission)) {
       throw new ForbiddenException(
@@ -450,7 +570,7 @@ export class UsersService {
     const restricted = roleNames.filter((role) => privilegedRoles.has(role));
     if (restricted.length) {
       throw new ForbiddenException(
-        `Only SUPERADMIN can assign privileged role(s): ${restricted.join(", ")}`,
+        `Only an organization owner can assign privileged role(s): ${restricted.join(", ")}`,
       );
     }
   }
@@ -535,7 +655,7 @@ export class UsersService {
       description: `Set permission overrides for ${target.email}: grant [${dto.grant.join(", ")}], revoke [${dto.revoke.join(", ")}]`,
     });
 
-    await this.redis.del(CacheKeys.usersDirectory);
+    await this.redis.del(CacheKeys.usersDirectory(requireOrgId(actor)));
 
     this.eventsGateway.notifyPermissionUpdate(userId, {
       permissionGrants: dto.grant,

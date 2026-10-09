@@ -40,7 +40,7 @@ export class SuggestionsController {
   @Get()
   @ResponseMessage("Suggestions fetched successfully")
   findAll(@CurrentUser() user: AuthUser) {
-    return this.suggestionsService.findAll(user.id);
+    return this.suggestionsService.findAll(user.id, user.orgId ?? undefined);
   }
 
   @Post()

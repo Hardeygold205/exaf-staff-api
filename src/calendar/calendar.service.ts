@@ -18,11 +18,18 @@ export class CalendarService {
 
   async getMonthlyCalendar(userId: string, query: MonthlyCalendarQuery) {
     const { start, end } = this.monthBounds(query.year, query.month);
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+    const organizationId = account?.organizationId;
+    if (!organizationId) return [];
 
     const [events, birthdays, leaveRequests, tasks, projects] =
       await Promise.all([
         this.prisma.event.findMany({
           where: {
+            organizationId,
             startsAt: { lt: end },
             OR: [{ endsAt: null }, { endsAt: { gte: start } }],
           },
@@ -31,6 +38,7 @@ export class CalendarService {
 
         this.prisma.user.findMany({
           where: {
+            organizationId,
             dateOfBirth: { not: null },
             isActive: true,
           },
@@ -44,6 +52,7 @@ export class CalendarService {
 
         this.prisma.staffRequest.findMany({
           where: {
+            organizationId,
             category: "LEAVE",
             status: "APPROVED",
             startDate: { not: null, lt: end },
@@ -181,7 +190,7 @@ export class CalendarService {
         breakStart: "13:00",
         breakEnd: "14:00",
         officialEnd: "17:00",
-        trackingEnd: "18:00",
+        trackingEnd: "18:30",
       },
       workingDays: this.generateWorkingDays(query.year, query.month),
       items: items.sort((a, b) => a.startDate.localeCompare(b.startDate)),

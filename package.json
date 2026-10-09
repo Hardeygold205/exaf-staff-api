@@ -1,5 +1,5 @@
 {
-  "name": "exaf-staff-api",
+  "name": "staff-platform-api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,10 @@
     "prisma:generate": "prisma generate --schema=prisma/schema",
     "prisma:migrate": "dotenv -e .env.local -- prisma migrate dev --schema=prisma/schema",
     "prisma:migrate:name": "dotenv -e .env.local -- prisma migrate dev --schema=prisma/schema --name",
-    "prisma:migrate:deploy": "prisma migrate deploy --schema=prisma/schema",
+    "prisma:migrate:deploy": "dotenv -e .env.local -- prisma migrate deploy --schema=prisma/schema",
+    "prisma:migrate:deploy:prod": "dotenv -e .env -- prisma migrate deploy --schema=prisma/schema",
+    "docker:up": "docker compose --env-file .env.local up --build",
+    "docker:reset": "docker compose --env-file .env.local down -v && docker compose --env-file .env.local up --build",
     "prisma:migrate:status": "dotenv -e .env.local -- prisma migrate status --schema=prisma/schema",
     "prisma:migrate:resolve": "dotenv -e .env.local -- prisma migrate resolve --schema=prisma/schema",
     "prisma:push": "dotenv -e .env.local -- prisma db push --schema=prisma/schema",
@@ -20,7 +23,7 @@
     "prisma:format": "prisma format --schema=prisma/schema",
     "prisma:validate": "prisma validate --schema=prisma/schema",
     "seed": "dotenv -e .env.local -- ts-node --transpile-only prisma/seeds/seed.ts",
-    "prod:seed": "ts-node --transpile-only prisma/seeds/seed.ts"
+    "prod:seed": "dotenv -e .env -- ts-node --transpile-only prisma/seeds/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.645.0",

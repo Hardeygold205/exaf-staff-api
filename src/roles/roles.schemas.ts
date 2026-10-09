@@ -8,9 +8,10 @@ export const createRoleSchema = z.object({
     .max(64)
     .regex(
       /^[A-Z][A-Z0-9_]*$/,
-      "Role name must be UPPER_SNAKE_CASE (e.g. MARKETING_LEAD)",
+      "Role name must be UPPER_SNAKE_CASE (e.g. EXECUTIVE or MARKETING_LEAD)",
     ),
   description: z.string().max(500).optional(),
+  permissionKeys: z.array(z.string().trim().min(1)).default([]),
 });
 export type CreateRoleInput = z.infer<typeof createRoleSchema>;
 export class CreateRoleDto extends createZodDto(createRoleSchema) {}

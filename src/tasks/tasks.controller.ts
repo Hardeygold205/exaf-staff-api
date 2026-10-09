@@ -42,8 +42,8 @@ export class TasksController {
 
   @Get("projects/:projectId/tasks")
   @ResponseMessage("Tasks retrieved successfully")
-  findByProject(@Param("projectId") projectId: string) {
-    return this.tasksService.findByProject(projectId);
+  findByProject(@CurrentUser() user: AuthUser, @Param("projectId") projectId: string) {
+    return this.tasksService.findByProject(user, projectId);
   }
 
   @Post("projects/:projectId/tasks")
@@ -61,8 +61,8 @@ export class TasksController {
 
   @Get("tasks/:id")
   @ResponseMessage("Task retrieved successfully")
-  findOne(@Param("id") id: string) {
-    return this.tasksService.findOne(id);
+  findOne(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.tasksService.findOne(user, id);
   }
 
   @Patch("tasks/:id")
@@ -93,6 +93,6 @@ export class TasksController {
   @ResponseMessage("Task deleted successfully")
   @RequirePermissions("tasks:delete")
   remove(@Param("id") id: string, @CurrentUser() user: AuthUser) {
-    return this.tasksService.remove(id, user.id);
+    return this.tasksService.remove(id, user);
   }
 }

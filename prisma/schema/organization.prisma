@@ -1,0 +1,58 @@
+model Organization {
+  id        String  @id @default(uuid())
+  name      String
+  slug      String  @unique
+  logoUrl   String?
+  iconUrl   String?
+  website   String?
+  industry  String?
+  timezone  String  @default("Africa/Lagos")
+  legalName String?
+  phone     String?
+  address   String?
+  city      String?
+  state     String?
+  country   String?
+  staffRange String?
+  registrationNumber String?
+  about     String?
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  settings      OrganizationSettings?
+  departments   Department[]
+  branches      OfficeBranch[]
+  users         User[]
+  roles         Role[]
+  projects      Project[]
+  events        Event[]
+  attendances   Attendance[]
+  staffRequests StaffRequest[]
+  activityLogs  ActivityLog[]
+  suggestions   Suggestion[]
+  uploads       Upload[]
+  invitations   Invitation[]
+
+  @@map("organizations")
+}
+
+model OrganizationSettings {
+  id               String  @id @default(uuid())
+  organizationId   String  @unique
+  workStartTime    String  @default("09:00")
+  workEndTime      String  @default("17:00")
+  autoCheckoutTime String  @default("18:00")
+  workDays         Int[]   @default([1, 2, 3, 4, 5])
+  enableScreentime Boolean @default(false)
+  enableSuggestions Boolean @default(true)
+  allowedRequestCategories String[] @default(["LEAVE", "EXPENSE", "EQUIPMENT", "TRAVEL", "TRAINING", "OTHER"])
+  allowedEmailDomains String[] @default([])
+  plan            String  @default("FREE")
+  seatLimit       Int     @default(25)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_settings")
+}

@@ -102,17 +102,24 @@ export class UsersController {
     return this.usersService.uploadAvatar(user.id, file);
   }
 
+
+  @Get("directory/departments")
+  @ResponseMessage("Department directory retrieved successfully")
+  findDepartmentDirectory(@CurrentUser() user: AuthUser) {
+    return this.usersService.findDepartmentDirectory(user);
+  }
+
   @Get("emails")
   @ResponseMessage("Directory emails retrieved successfully")
-  findDirectoryEmails() {
-    return this.usersService.findDirectoryEmails();
+  findDirectoryEmails(@CurrentUser() user: AuthUser) {
+    return this.usersService.findDirectoryEmails(user);
   }
 
   @Get()
   @ResponseMessage("Users retrieved successfully")
   @RequirePermissions("users:view")
-  findAll() {
-    return this.usersService.findAll();
+  findAll(@CurrentUser() user: AuthUser) {
+    return this.usersService.findAll(user);
   }
 
   @Patch(":id")
@@ -165,7 +172,7 @@ export class UsersController {
   @Patch(":id/deactivate")
   @ResponseMessage("User deactivated successfully")
   @RequirePermissions("users:manage")
-  deactivate(@Param("id") id: string) {
-    return this.usersService.deactivate(id);
+  deactivate(@Param("id") id: string, @CurrentUser() actor: AuthUser) {
+    return this.usersService.deactivate(id, actor);
   }
 }

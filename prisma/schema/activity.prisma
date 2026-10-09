@@ -1,16 +1,20 @@
 model ActivityLog {
-  id          String   @id @default(uuid())
-  userId      String?
-  action      String
-  entityType  String?
-  entityId    String?
-  description String
-  metadata    Json?    @default("{}")
-  ipAddress   String?
-  createdAt   DateTime @default(now())
+  id             String   @id @default(uuid())
+  organizationId String?
+  userId         String?
+  action         String
+  entityType     String?
+  entityId       String?
+  description    String
+  metadata       Json?    @default("{}")
+  ipAddress      String?
 
-  user User? @relation("ActivityUser", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
 
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?         @relation("ActivityUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
   @@index([userId, createdAt])
   @@index([action])
   @@index([createdAt])

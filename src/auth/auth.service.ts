@@ -42,26 +42,26 @@ export class AuthService {
     const permissions = new Set<string>();
     const missing: string[] = [];
 
-    for (const roleName of roles) {
+    for (const userRole of userRoles) {
       const cached = await this.redis.get<string[]>(
-        CacheKeys.rolePermissions(roleName),
+        CacheKeys.rolePermissions(userRole.roleId),
       );
       if (cached) {
         cached.forEach((key) => permissions.add(key));
       } else {
-        missing.push(roleName);
+        missing.push(userRole.roleId);
       }
     }
 
     if (missing.length) {
       const ttl = Number(this.config.get("CACHE_RBAC_TTL_SECONDS", 3600));
       const dbRoles = await this.prisma.role.findMany({
-        where: { name: { in: missing } },
+        where: { id: { in: missing } },
         include: { permissions: { include: { permission: true } } },
       });
       for (const role of dbRoles) {
         const keys = role.permissions.map((rp) => rp.permission.key);
-        await this.redis.set(CacheKeys.rolePermissions(role.name), keys, ttl);
+        await this.redis.set(CacheKeys.rolePermissions(role.id), keys, ttl);
         keys.forEach((key) => permissions.add(key));
       }
     }
@@ -196,7 +196,26 @@ export class AuthService {
     return null;
   }
 
+  async createSession(
+    userId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ): Promise<TokenPair> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException("Account is inactive");
+    }
+    return this.issueTokens(
+      user.id,
+      user.email,
+      user.mustChangePassword,
+      ipAddress,
+      userAgent,
+    );
+  }
+
   private hashRefreshToken(rawToken: string): string {
+
     return crypto.createHash("sha256").update(rawToken).digest("hex");
   }
 
@@ -212,10 +231,29 @@ export class AuthService {
     const secret = this.config.get<string>("JWT_ACCESS_SECRET");
     if (!secret) throw new Error("JWT_ACCESS_SECRET is not set");
 
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true, isPlatformAdmin: true, isActive: true },
+    });
+    if (!account?.isActive) {
+      throw new UnauthorizedException("Account is inactive");
+    }
+    if (account.organizationId) {
+      const org = await this.prisma.organization.findUnique({
+        where: { id: account.organizationId },
+        select: { isActive: true },
+      });
+      if (!org?.isActive) {
+        throw new UnauthorizedException("Organization is suspended");
+      }
+    }
+
     const accessToken = this.jwt.sign(
       {
         sub: userId,
         email,
+        orgId: account.organizationId,
+        isPlatformAdmin: account.isPlatformAdmin,
         roles,
         permissions,
         jti: crypto.randomUUID(),

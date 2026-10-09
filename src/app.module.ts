@@ -24,6 +24,11 @@ import { TasksModule } from "./tasks/tasks.module";
 import { EventsModule } from "./events/events.module";
 import { CalendarModule } from "./calendar/calendar.module";
 import { SuggestionsModule } from "./suggestions/suggestions.module";
+import { OrganizationsModule } from "./organizations/organizations.module";
+import { DepartmentsModule } from "./departments/departments.module";
+import { BranchesModule } from "./branches/branches.module";
+import { InvitationsModule } from "./invitations/invitations.module";
+import { PlatformModule } from "./platform/platform.module";
 import { WebsocketModule } from "./infra/socket/events.module";
 
 @Module({
@@ -57,6 +62,11 @@ import { WebsocketModule } from "./infra/socket/events.module";
     EventsModule,
     CalendarModule,
     SuggestionsModule,
+    OrganizationsModule,
+    DepartmentsModule,
+    BranchesModule,
+    InvitationsModule,
+    PlatformModule,
     WebsocketModule,
   ],
   controllers: [AppController],

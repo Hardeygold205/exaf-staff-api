@@ -21,6 +21,7 @@ import {
 } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { ResponseMessage } from "../common/decorators/response-message.decorator";
+import { requireOrgId } from "../common/tenant";
 import { EventsService } from "./events.service";
 import {
   CreateEventDto,
@@ -40,19 +41,19 @@ export class EventsController {
 
   @Get("upcoming")
   @ResponseMessage("Upcoming events retrieved successfully")
-  upcoming(@Query("days") days?: string) {
+  upcoming(@CurrentUser() user: AuthUser, @Query("days") days?: string) {
     const parsed = days ? Number(days) : 30;
     const safeDays = Number.isFinite(parsed)
       ? Math.min(Math.max(Math.trunc(parsed), 1), 365)
       : 30;
-    return this.eventsService.listUpcoming(safeDays);
+    return this.eventsService.listUpcoming(requireOrgId(user), safeDays);
   }
 
   @Get()
   @ResponseMessage("Managed events retrieved successfully")
   @RequirePermissions("events:manage")
-  listManaged() {
-    return this.eventsService.listManaged();
+  listManaged(@CurrentUser() user: AuthUser) {
+    return this.eventsService.listManaged(requireOrgId(user));
   }
 
   @Get(":id")

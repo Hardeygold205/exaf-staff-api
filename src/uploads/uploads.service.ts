@@ -28,6 +28,7 @@ export class UploadsService {
 
     return this.prisma.upload.create({
       data: {
+        organizationId: user.orgId!,
         uploadedById: user.id,
         originalName: pathInfo.fileName,
         storedKey: key,
@@ -52,9 +53,9 @@ export class UploadsService {
     return Promise.all(files.map((file) => this.uploadOne(user, file, meta)));
   }
 
-  async findOwn(userId: string) {
+  async findOwn(user: AuthUser) {
     return this.prisma.upload.findMany({
-      where: { uploadedById: userId },
+      where: { uploadedById: user.id, organizationId: user.orgId ?? undefined },
       orderBy: { createdAt: "desc" },
     });
   }

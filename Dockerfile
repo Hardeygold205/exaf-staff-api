@@ -27,7 +27,8 @@ ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
+COPY prisma.config.ts ./
 COPY package.json ./
 
 EXPOSE 5002
-CMD ["node", "dist/src/main"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=prisma/schema && node dist/main"]

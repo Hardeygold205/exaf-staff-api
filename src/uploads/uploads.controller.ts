@@ -139,7 +139,7 @@ export class UploadsController {
   @Get("me")
   @ResponseMessage("User uploads retrieved successfully")
   findOwn(@CurrentUser() user: AuthUser) {
-    return this.uploadsService.findOwn(user.id);
+    return this.uploadsService.findOwn(user);
   }
 
   @Get()

@@ -20,8 +20,18 @@ export class EventsService {
   ) {}
 
   async create(userId: string, dto: CreateEventInput) {
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        organizationId: true,
+        organization: { select: { name: true } },
+      },
+    });
+    if (!account?.organizationId) throw new Error("Organization required");
+    const organizationName = account.organization?.name;
     const event = await this.prisma.event.create({
       data: {
+        organizationId: account.organizationId,
         title: dto.title,
         description: dto.description,
         type: dto.type,
@@ -53,7 +63,7 @@ export class EventsService {
     });
 
     await this.notifications.createBulkNotifications(
-      await this.activeUserIds(),
+      await this.activeUserIds(account.organizationId),
       {
         title: event.title,
         message:
@@ -65,11 +75,12 @@ export class EventsService {
     );
 
     if (dto.notifyByEmail) {
-      const staffEmails = await this.activeUserEmails();
+      const staffEmails = await this.activeUserEmails(account.organizationId);
       await this.mail.send({
         to: [],
         bcc: staffEmails,
         replyTo: event.createdBy.email,
+        organizationName,
         subject: `[${event.type.replace("_", " ")}] ${event.title}`,
         html: `
           <p>${escapeHtml(event.description ?? event.title)}</p>
@@ -160,7 +171,7 @@ export class EventsService {
     return null;
   }
 
-  async listUpcoming(days = 30) {
+  async listUpcoming(organizationId: string, days = 30) {
     const now = new Date();
     const end = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
     const birthdayFrom = new Date(
@@ -169,6 +180,7 @@ export class EventsService {
     const [events, users] = await Promise.all([
       this.prisma.event.findMany({
         where: {
+          organizationId,
           OR: [
             { startsAt: { gte: now, lte: end } },
             { startsAt: { lt: now }, endsAt: { gte: now } },
@@ -180,7 +192,7 @@ export class EventsService {
         orderBy: { startsAt: "asc" },
       }),
       this.prisma.user.findMany({
-        where: { isActive: true, dateOfBirth: { not: null } },
+        where: { organizationId, isActive: true, dateOfBirth: { not: null } },
         select: {
           id: true,
           firstName: true,
@@ -215,8 +227,9 @@ export class EventsService {
     ].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   }
 
-  async listManaged() {
+  async listManaged(organizationId: string) {
     return this.prisma.event.findMany({
+      where: { organizationId },
       include: {
         createdBy: { select: { id: true, firstName: true, lastName: true } },
       },
@@ -246,17 +259,17 @@ export class EventsService {
     return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   }
 
-  private async activeUserIds() {
+  private async activeUserIds(organizationId?: string) {
     const users = await this.prisma.user.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...(organizationId ? { organizationId } : {}) },
       select: { id: true },
     });
     return users.map((user) => user.id);
   }
 
-  private async activeUserEmails() {
+  private async activeUserEmails(organizationId?: string) {
     const users = await this.prisma.user.findMany({
-      where: { isActive: true },
+      where: { isActive: true, ...(organizationId ? { organizationId } : {}) },
       select: { email: true },
     });
     return users.map((user) => user.email);

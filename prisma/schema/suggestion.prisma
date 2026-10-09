@@ -11,18 +11,21 @@ enum SuggestionVoteType {
 }
 
 model Suggestion {
-  id          String           @id @default(uuid())
-  content     String
-  isAnonymous Boolean          @default(false)
-  status      SuggestionStatus @default(PENDING)
-  createdById String
-
-  createdBy User             @relation("SuggestionCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  votes     SuggestionVote[]
+  id             String           @id @default(uuid())
+  organizationId String
+  content        String
+  isAnonymous    Boolean          @default(false)
+  status         SuggestionStatus @default(PENDING)
+  createdById    String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User             @relation("SuggestionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  votes        SuggestionVote[]
+
+  @@index([organizationId, createdAt])
   @@index([createdAt])
   @@index([status, createdAt])
   @@map("suggestions")
@@ -33,8 +36,9 @@ model SuggestionVote {
   suggestionId String
   userId       String
   type         SuggestionVoteType
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   suggestion Suggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
   user       User       @relation("SuggestionVotes", fields: [userId], references: [id], onDelete: Cascade)

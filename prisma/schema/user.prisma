@@ -1,8 +1,3 @@
-enum OfficeBranch {
-  ABUJA
-  KANO
-}
-
 enum Shift {
   ONSITE
   HYBRID
@@ -10,26 +5,33 @@ enum Shift {
 }
 
 model User {
-  id                 String       @id @default(uuid())
-  email              String       @unique
+  id                 String    @id @default(uuid())
+  organizationId     String?
+  email              String    @unique
   passwordHash       String
   firstName          String
   lastName           String
   middleName         String?
-  username           String?      @unique
+  username           String?   @unique
   dateOfBirth        DateTime?
-  department         String       @default("UNASSIGNED")
-  position           String       @default("UNASSIGNED")
-  isIntern           Boolean      @default(false)
-  officeBranch       OfficeBranch @default(ABUJA)
-  shift              Shift        @default(ONSITE)
+  departmentId       String?
+  position           String    @default("UNASSIGNED")
+  isIntern           Boolean   @default(false)
+  officeBranchId     String?
+  shift              Shift     @default(ONSITE)
   bio                String?
   avatarUrl          String?
-  isActive           Boolean      @default(true)
-  mustChangePassword Boolean      @default(true)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  isActive           Boolean   @default(true)
+  isPlatformAdmin    Boolean   @default(false)
+  mustChangePassword Boolean   @default(true)
+  attendanceExempt   Boolean   @default(false)
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization        Organization?    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department          Department?      @relation("UserDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
+  officeBranch        OfficeBranch?    @relation(fields: [officeBranchId], references: [id], onDelete: SetNull)
   roles               UserRole[]
   attendances         Attendance[]
   staffRequests       StaffRequest[]   @relation("RequestOwner")
@@ -40,7 +42,6 @@ model User {
   createdTasks        Task[]           @relation("CreatedTasks")
   refreshTokens       RefreshToken[]
   screentimeLogs      ScreentimeLog[]  @relation("ScreentimeUser")
-  attendanceExempt    Boolean          @default(false)
   reviewedAttendance  Attendance[]     @relation("AttendanceReviewer")
   permissionOverrides UserPermission[] @relation("UserPermissionTarget")
   grantedPermissions  UserPermission[] @relation("UserPermissionGrantor")
@@ -50,10 +51,12 @@ model User {
   createdEvents       Event[]          @relation("EventCreator")
   suggestions         Suggestion[]     @relation("SuggestionCreator")
   suggestionVotes     SuggestionVote[] @relation("SuggestionVotes")
+  headOfDepartments   Department[]     @relation("DepartmentHead")
+  sentInvitations     Invitation[]     @relation("InviteSender")
 
-  @@index([officeBranch])
-  @@index([department])
-  @@index([position])
+  @@index([organizationId])
+  @@index([departmentId])
+  @@index([officeBranchId])
   @@index([isActive])
   @@map("users")
 }

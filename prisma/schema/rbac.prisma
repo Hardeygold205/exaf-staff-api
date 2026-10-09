@@ -1,12 +1,18 @@
 model Role {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  description String?
-  createdAt   DateTime @default(now())
+  id             String   @id @default(uuid())
+  organizationId String?
+  name           String
+  description    String?
+  isSystem       Boolean  @default(false)
+  createdAt      DateTime @default(now())
 
-  users       UserRole[]
-  permissions RolePermission[]
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        UserRole[]
+  permissions  RolePermission[]
+  invitations  Invitation[]
 
+  @@unique([organizationId, name])
+  @@index([organizationId])
   @@map("roles")
 }
 
@@ -21,13 +27,6 @@ model Permission {
   @@map("permissions")
 }
 
-/**
- * Per-user permission overrides, layered on top of role-derived permissions.
- * granted=true: an extra permission this user has beyond what their role(s) give them
- * (e.g. a STAFF member individually given HR's "requests:approve").
- * granted=false: an explicit revoke — removes a permission even if a role grants it.
- * Absence of a row here means "just use whatever the roles say," which is the normal case.
- */
 model UserPermission {
   userId       String
   permissionId String

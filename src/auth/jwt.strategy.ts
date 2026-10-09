@@ -7,6 +7,8 @@ import { AuthUser } from "../common/decorators/current-user.decorator";
 interface JwtPayload {
   sub: string;
   email: string;
+  orgId?: string | null;
+  isPlatformAdmin?: boolean;
   roles: string[];
   permissions: string[];
   jti: string;
@@ -37,8 +39,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       id: payload.sub,
       email: payload.email,
-      roles: payload.roles,
-      permissions: payload.permissions,
+      orgId: payload.orgId ?? null,
+      isPlatformAdmin: Boolean(payload.isPlatformAdmin),
+      roles: payload.roles ?? [],
+      permissions: payload.permissions ?? [],
       jti: payload.jti,
       exp: payload.exp,
     };

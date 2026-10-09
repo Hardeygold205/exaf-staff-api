@@ -8,11 +8,15 @@ import { JwtStrategy } from './jwt.strategy';
 import { RefreshTokenCleanupService } from './refresh-token-cleanup.service';
 import { ActivitiesModule } from '../activities/activities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
+import { InvitationsModule } from '../invitations/invitations.module';
 
 @Module({
   imports: [
     ActivitiesModule,
     NotificationsModule,
+    OrganizationsModule,
+    InvitationsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

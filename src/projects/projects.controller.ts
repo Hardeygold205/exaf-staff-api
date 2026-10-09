@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -13,17 +14,20 @@ import { ApiBearerAuth, ApiBody, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../common/guards/jwt-auth.guard";
 import { PermissionsGuard } from "../common/guards/permissions.guard";
 import { RequirePermissions } from "../common/decorators/permissions.decorator";
-import {
-  CurrentUser,
-  AuthUser,
-} from "../common/decorators/current-user.decorator";
+import { CurrentUser, AuthUser } from "../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { ResponseMessage } from "../common/decorators/response-message.decorator";
 import { ProjectsService } from "./projects.service";
 import {
+  AddProjectMemberDto,
+  AddProjectMemberInput,
+  addProjectMemberSchema,
   CreateProjectDto,
   CreateProjectInput,
   createProjectSchema,
+  UpdateProjectDto,
+  UpdateProjectInput,
+  updateProjectSchema,
   UpdateProjectStatusDto,
   UpdateProjectStatusInput,
   updateProjectStatusSchema,
@@ -50,14 +54,26 @@ export class ProjectsController {
 
   @Get()
   @ResponseMessage("Projects retrieved successfully")
-  findAll() {
-    return this.projectsService.findAll();
+  findAll(@CurrentUser() user: AuthUser) {
+    return this.projectsService.findAll(user);
   }
 
   @Get(":id")
   @ResponseMessage("Project retrieved successfully")
-  findOne(@Param("id") id: string) {
-    return this.projectsService.findOne(id);
+  findOne(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.projectsService.findOne(user, id);
+  }
+
+  @Patch(":id")
+  @ResponseMessage("Project updated successfully")
+  @RequirePermissions("projects:update")
+  @ApiBody({ type: UpdateProjectDto })
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateProjectSchema)) dto: UpdateProjectInput,
+  ) {
+    return this.projectsService.update(user, id, dto);
   }
 
   @Patch(":id/status")
@@ -67,9 +83,31 @@ export class ProjectsController {
   updateStatus(
     @CurrentUser() user: AuthUser,
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(updateProjectStatusSchema))
-    dto: UpdateProjectStatusInput,
+    @Body(new ZodValidationPipe(updateProjectStatusSchema)) dto: UpdateProjectStatusInput,
   ) {
-    return this.projectsService.updateStatus(id, user.id, dto);
+    return this.projectsService.updateStatus(user, id, dto);
+  }
+
+  @Post(":id/members")
+  @ResponseMessage("Project member added successfully")
+  @RequirePermissions("projects:manage_members")
+  @ApiBody({ type: AddProjectMemberDto })
+  addMember(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(addProjectMemberSchema)) dto: AddProjectMemberInput,
+  ) {
+    return this.projectsService.addMember(user, id, dto);
+  }
+
+  @Delete(":id/members/:userId")
+  @ResponseMessage("Project member removed successfully")
+  @RequirePermissions("projects:manage_members")
+  removeMember(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+  ) {
+    return this.projectsService.removeMember(user, id, userId);
   }
 }

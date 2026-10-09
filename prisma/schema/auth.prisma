@@ -1,4 +1,3 @@
-// Hashed refresh tokens, one row per active session/device.
 model RefreshToken {
   id        String    @id @default(uuid())
   userId    String

@@ -26,8 +26,17 @@ export class RequestsService {
   }
 
   async create(userId: string, dto: CreateRequestInput) {
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        organizationId: true,
+        organization: { select: { name: true } },
+      },
+    });
+    if (!account?.organizationId) throw new Error("Organization required");
     const request = await this.prisma.staffRequest.create({
       data: {
+        organizationId: account.organizationId,
         userId,
         category: dto.category,
         subject: dto.subject,
@@ -48,12 +57,13 @@ export class RequestsService {
         to: dto.notifyToEmails,
         cc: dto.notifyCcEmails,
         replyTo: request.user.email,
+        organizationName: account.organization?.name,
         subject: `[${dto.category}] ${dto.subject}`,
         html: `
-          <p>${requester} (${request.user.email}) submitted a <strong>${dto.category}</strong> request.</p>
+          <p>${escapeHtml(requester)} (${escapeHtml(request.user.email)}) submitted a <strong>${escapeHtml(dto.category)}</strong> request.</p>
           <p><strong>Subject:</strong> ${escapeHtml(dto.subject)}</p>
           ${dto.details ? `<p>${escapeHtml(dto.details)}</p>` : ""}
-          ${dto.startDate ? `<p>From ${dto.startDate} to ${dto.endDate}</p>` : ""}
+          ${dto.startDate ? `<p>From ${escapeHtml(dto.startDate)} to ${escapeHtml(dto.endDate ?? "")}</p>` : ""}
         `,
       });
     }

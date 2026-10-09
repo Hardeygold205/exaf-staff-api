@@ -7,7 +7,7 @@ export class AppController {
   constructor(private config: ConfigService) {}
 
   @Get()
-  @ResponseMessage("EXAF Staff Workplace Platform API is running")
+  @ResponseMessage("Staff Workplace Platform API is running")
   getRoot() {
     const port = this.config.get<number>("PORT", 5002);
     return {

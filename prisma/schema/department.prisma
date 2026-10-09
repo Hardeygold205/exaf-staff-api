@@ -1,0 +1,21 @@
+model Department {
+  id             String  @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  headUserId     String?
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  headUser     User?        @relation("DepartmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
+  users        User[]       @relation("UserDepartment")
+  projects     Project[]
+  invitations  Invitation[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("departments")
+}

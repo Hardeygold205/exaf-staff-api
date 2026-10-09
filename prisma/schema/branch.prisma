@@ -1,0 +1,20 @@
+model OfficeBranch {
+  id             String  @id @default(uuid())
+  organizationId String
+  name           String
+  address        String?
+  city           String?
+  state          String?
+  country        String?
+  isActive       Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        User[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("office_branches")
+}

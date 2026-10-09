@@ -1,0 +1,31 @@
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+model Invitation {
+  id             String           @id @default(uuid())
+  organizationId String
+  email          String
+  roleId         String?
+  departmentId   String?
+  invitedById    String
+  token          String           @unique
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User         @relation("InviteSender", fields: [invitedById], references: [id])
+  role         Role?        @relation(fields: [roleId], references: [id])
+  department   Department?  @relation(fields: [departmentId], references: [id])
+
+  @@unique([organizationId, email])
+  @@index([token])
+  @@index([organizationId, status])
+  @@map("invitations")
+}

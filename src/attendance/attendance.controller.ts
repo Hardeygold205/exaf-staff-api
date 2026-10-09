@@ -22,6 +22,7 @@ import {
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
 import { ResponseMessage } from "../common/decorators/response-message.decorator";
 import { AttendanceService } from "./attendance.service";
+import { requireOrgId } from "../common/tenant";
 import {
   CheckInDto,
   CheckInInput,
@@ -80,8 +81,8 @@ export class AttendanceController {
   @Get()
   @ResponseMessage("All attendance records retrieved successfully")
   @RequirePermissions("attendance:view_all")
-  findAll() {
-    return this.attendanceService.findAll();
+  findAll(@CurrentUser() user: AuthUser) {
+    return this.attendanceService.findAll(requireOrgId(user));
   }
 
   @Get("pending-review")

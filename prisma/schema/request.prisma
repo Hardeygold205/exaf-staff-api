@@ -5,9 +5,9 @@ enum RequestStatus {
   CANCELLED
 }
 
-// category is a string (LEAVE, TRAVEL, EQUIPMENT, …) so new kinds do not require a migration.
 model StaffRequest {
   id             String        @id @default(uuid())
+  organizationId String
   userId         String
   category       String
   subject        String
@@ -19,11 +19,14 @@ model StaffRequest {
   notifyCcEmails String[]      @default([])
   reviewedById   String?
   reviewedAt     DateTime?
-  createdAt      DateTime      @default(now())
 
-  user       User  @relation("RequestOwner", fields: [userId], references: [id], onDelete: Cascade)
-  reviewedBy User? @relation("RequestReviewer", fields: [reviewedById], references: [id])
+  createdAt DateTime @default(now())
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("RequestOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("RequestReviewer", fields: [reviewedById], references: [id])
+
+  @@index([organizationId, userId, status])
   @@index([userId, status])
   @@index([category])
   @@map("staff_requests")

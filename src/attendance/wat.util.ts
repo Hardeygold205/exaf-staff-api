@@ -17,8 +17,10 @@ export function isCheckInAllowed(at: Date = new Date()): boolean {
   return seconds >= CHECK_IN_OPEN_SECONDS;
 }
 
+const LATE_CHECK_IN_SECONDS = 9 * 3600 + 30 * 60;
+
 export function isLateCheckIn(at: Date = new Date()): boolean {
-  return watSecondsOfDay(at) > OFFICIAL_START_SECONDS;
+  return watSecondsOfDay(at) > LATE_CHECK_IN_SECONDS;
 }
 
 export function isTrackingAllowed(at: Date = new Date()): boolean {

@@ -11,14 +11,15 @@ enum UploadEntityType {
 }
 
 model Upload {
-  id           String        @id @default(uuid())
-  uploadedById String
-  originalName String
-  storedKey    String
-  url          String
-  mimeType     String
-  sizeBytes    Int
-  driver       StorageDriver
+  id             String        @id @default(uuid())
+  organizationId String
+  uploadedById   String
+  originalName   String
+  storedKey      String
+  url            String
+  mimeType       String
+  sizeBytes      Int
+  driver         StorageDriver
 
   entityType UploadEntityType?
   entityId   String?
@@ -28,12 +29,14 @@ model Upload {
 
   createdAt DateTime @default(now())
 
-  uploadedBy User    @relation("UploadOwner", fields: [uploadedById], references: [id], onDelete: Cascade)
-  task       Task?   @relation(fields: [taskId], references: [id])
-  taskId     String?
-  event      Event?  @relation(fields: [eventId], references: [id])
-  eventId    String?
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation("UploadOwner", fields: [uploadedById], references: [id], onDelete: Cascade)
+  task         Task?        @relation(fields: [taskId], references: [id])
+  taskId       String?
+  event        Event?       @relation(fields: [eventId], references: [id])
+  eventId      String?
 
+  @@index([organizationId])
   @@index([entityId])
   @@index([folderName])
   @@index([uploadedById])

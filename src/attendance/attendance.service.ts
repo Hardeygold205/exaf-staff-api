@@ -8,7 +8,6 @@ import {
   isCheckInAllowed,
   isCheckoutGracePeriod,
   isEarlyCheckOut,
-  isLateCheckIn,
 } from "./wat.util";
 
 import { ActivitiesService } from "../activities/activities.service";
@@ -38,15 +37,41 @@ export class AttendanceService {
     });
 
     if (openRecord) {
-      throw new BadRequestException(
-        "You already have an open check-in. Check out first.",
-      );
+      const openRecordDate = new Date(openRecord.checkInAt);
+      const getWatDateString = (d: Date) => new Date(d.getTime() + 3600000).toISOString().split('T')[0];
+      const isSameDay = getWatDateString(openRecordDate) === getWatDateString(now);
+      if (isSameDay) {
+        throw new BadRequestException(
+          "You already have an open check-in. Check out first.",
+        );
+      } else {
+        const endOfThatDay = new Date(openRecordDate);
+        endOfThatDay.setUTCHours(22, 59, 59, 999);
+        await this.prisma.attendance.update({
+          where: { id: openRecord.id },
+          data: {
+            checkOutAt: endOfThatDay,
+            leftEarly: true,
+            reviewStatus: "PENDING_REVIEW",
+            checkoutReasonType: "FORGOT_TO_CHECKOUT",
+            checkoutSource: "SYSTEM",
+          }
+        });
+      }
     }
 
-    const status = isLateCheckIn(now) ? "LATE" : "PRESENT";
+    const status = "PRESENT";
 
+    const account = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { organizationId: true },
+    });
+    if (!account?.organizationId) {
+      throw new BadRequestException("Attendance requires an organization account");
+    }
     const record = await this.prisma.attendance.create({
       data: {
+        organizationId: account.organizationId,
         userId,
         checkInAt: now,
         checkInIp: ip,
@@ -153,11 +178,12 @@ export class AttendanceService {
     });
   }
 
-  findAll() {
+  findAll(organizationId: string) {
     return this.prisma.attendance.findMany({
+      where: { organizationId },
       include: {
         user: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+          select: { id: true, firstName: true, lastName: true, email: true, attendanceExempt: true },
         },
       },
       orderBy: { checkInAt: "desc" },
@@ -170,7 +196,7 @@ export class AttendanceService {
       where: { reviewStatus: "PENDING_REVIEW" },
       include: {
         user: {
-          select: { id: true, firstName: true, lastName: true, email: true },
+          select: { id: true, firstName: true, lastName: true, email: true, attendanceExempt: true },
         },
       },
       orderBy: { checkInAt: "asc" },

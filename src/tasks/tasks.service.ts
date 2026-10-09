@@ -6,6 +6,8 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../infra/prisma/prisma.service";
 import { ActivitiesService } from "../activities/activities.service";
+import { AuthUser } from "../common/decorators/current-user.decorator";
+import { loadAccessibleProject } from "../common/project-access";
 import { NotificationsService } from "../notifications/notifications.service";
 import {
   CreateTaskInput,
@@ -21,7 +23,8 @@ export class TasksService {
     private notifications: NotificationsService,
   ) {}
 
-  async findByProject(projectId: string) {
+  async findByProject(actor: AuthUser, projectId: string) {
+    await loadAccessibleProject(this.prisma, actor, projectId, "view");
     const project = await this.prisma.project.findUnique({
       where: { id: projectId },
     });
@@ -45,7 +48,7 @@ export class TasksService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(actor: AuthUser, id: string) {
     const task = await this.prisma.task.findUnique({
       where: { id },
       include: {
@@ -62,18 +65,16 @@ export class TasksService {
       },
     });
     if (!task) throw new NotFoundException("Task not found");
+    await loadAccessibleProject(this.prisma, actor, task.projectId, "view");
     return task;
   }
 
   async create(
     projectId: string,
-    actor: { id: string; permissions: string[] },
+    actor: AuthUser,
     dto: CreateTaskInput,
   ) {
-    const project = await this.prisma.project.findUnique({
-      where: { id: projectId },
-    });
-    if (!project) throw new NotFoundException("Project not found");
+    const project = await loadAccessibleProject(this.prisma, actor, projectId, "view");
 
     if (dto.assigneeId) {
       await this.ensureActiveUser(dto.assigneeId);
@@ -121,15 +122,15 @@ export class TasksService {
       });
     }
 
-    return this.findOne(task.id);
+    return this.findOne(actor, task.id);
   }
 
   async update(
     id: string,
-    actor: { id: string; permissions: string[] },
+    actor: AuthUser,
     dto: UpdateTaskInput,
   ) {
-    const task = await this.findOne(id);
+    const task = await this.findOne(actor, id);
     const canManage = actor.permissions.includes("tasks:manage");
     if (
       !canManage &&
@@ -186,15 +187,15 @@ export class TasksService {
       });
     }
 
-    return this.findOne(id);
+    return this.findOne(actor, id);
   }
 
   async updateStatus(
     id: string,
-    user: { id: string; permissions: string[] },
+    user: AuthUser,
     dto: UpdateTaskStatusInput,
   ) {
-    const task = await this.findOne(id);
+    const task = await this.findOne(user, id);
     const canManageAny = user.permissions.includes("tasks:manage_status");
     if (
       !canManageAny &&
@@ -220,11 +221,11 @@ export class TasksService {
     return updated;
   }
 
-  async remove(id: string, userId: string) {
-    const task = await this.findOne(id);
+  async remove(id: string, actor: AuthUser) {
+    const task = await this.findOne(actor, id);
     await this.prisma.task.delete({ where: { id } });
     await this.activities.logActivity({
-      userId,
+      userId: actor.id,
       action: "TASK_DELETED",
       entityType: "Task",
       entityId: id,

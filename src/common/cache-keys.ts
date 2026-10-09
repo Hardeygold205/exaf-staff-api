@@ -1,6 +1,6 @@
 export const CacheKeys = {
-  rolePermissions: (roleName: string) => `rbac:role:${roleName}:permissions`,
-  usersDirectory: "users:directory",
-  projectsList: "projects:list",
+  rolePermissions: (roleId: string) => `rbac:role:${roleId}:permissions`,
+  usersDirectory: (orgId: string) => `users:directory:${orgId}`,
+  projectsList: (orgId: string) => `projects:list:${orgId}`,
   blacklistedAccessToken: (jti: string) => `auth:blacklist:access:${jti}`,
 } as const;

@@ -1,29 +1,26 @@
 import { z } from "zod";
-import { createZodDto, ZodDto } from "nestjs-zod";
+import { createZodDto } from "nestjs-zod";
 import { companyEmail } from "../common/validation/email.schema";
 import { dateInput } from "../common/validation/date.schema";
 
 const name = z.string().trim().min(1).max(100);
-const department = z.string().trim().min(1).max(120);
 const position = z.string().trim().min(1).max(120);
-const officeBranch = z.enum(["ABUJA", "KANO"]).optional();
 const shift = z.enum(["ONSITE", "REMOTE", "HYBRID"]);
 
-/** Fields HR/SUPERADMIN must provide when provisioning an account. */
+/** Fields an org admin provides when provisioning an account. */
 export const createUserSchema = z.object({
   email: companyEmail,
   firstName: name,
   lastName: name,
-  department,
+  departmentId: z.string().uuid().nullable().optional(),
   position,
-  officeBranch: officeBranch,
-  shift: shift,
+  officeBranchId: z.string().uuid().nullable().optional(),
+  shift: shift.default("ONSITE"),
   isIntern: z.boolean().default(false),
+  attendanceExempt: z.boolean().default(false).optional(),
   roleNames: z
     .array(z.string().trim().min(1))
     .min(1, "At least one role is required"),
-
-  // These are optional because the staff member can complete their profile after login.
   middleName: name.optional(),
   username: z
     .string()
@@ -38,7 +35,6 @@ export const createUserSchema = z.object({
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export class CreateUserDto extends createZodDto(createUserSchema) {}
 
-/** Staff controlled profile fields. Employment fields and identity credentials stay admin controlled. */
 export const updateMeSchema = z.object({
   middleName: name.nullable().optional(),
   username: z
@@ -55,16 +51,16 @@ export const updateMeSchema = z.object({
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
 export class UpdateMeDto extends createZodDto(updateMeSchema) {}
 
-/** Administrative changes. */
 export const adminUpdateUserSchema = z.object({
   firstName: name.optional(),
   lastName: name.optional(),
   middleName: name.nullable().optional(),
-  department: department.optional(),
+  departmentId: z.string().uuid().nullable().optional(),
   position: position.optional(),
-  officeBranch: officeBranch,
-  shift: shift,
+  officeBranchId: z.string().uuid().nullable().optional(),
+  shift: shift.optional(),
   isIntern: z.boolean().optional(),
+  attendanceExempt: z.boolean().optional(),
   username: z
     .string()
     .trim()
@@ -85,6 +81,4 @@ export const setUserPermissionsSchema = z.object({
   revoke: z.array(z.string().trim().min(1)).default([]),
 });
 export type SetUserPermissionsInput = z.infer<typeof setUserPermissionsSchema>;
-export class SetUserPermissionsDto extends createZodDto(
-  setUserPermissionsSchema,
-) {}
+export class SetUserPermissionsDto extends createZodDto(setUserPermissionsSchema) {}

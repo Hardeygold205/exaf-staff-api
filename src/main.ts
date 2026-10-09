@@ -24,15 +24,18 @@ async function bootstrap() {
   });
 
   app.enableCors({
-    origin: ["http://localhost:4200"],
+    origin: (process.env.CORS_ORIGINS ?? "http://localhost:4200")
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
   });
 
   const config = new DocumentBuilder()
-    .setTitle("EXAF Staff Workplace API")
+    .setTitle("Staff Workplace API")
     .setDescription(
-      "Backend API for auth, RBAC, attendance, projects, staff requests, and screentime/app monitoring.",
+      "Multi-tenant staff workplace API: organizations, departments, projects, attendance, and requests.",
     )
     .setVersion("1.0")
     .addBearerAuth()
